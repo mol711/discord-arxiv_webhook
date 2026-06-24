@@ -2,7 +2,7 @@ name: arXiv Bot
 
 on:
   schedule:
-    - cron: '0 * * * *'  # 1時間ごと
+    - cron: '0 21 * * *'  #毎朝6時
   workflow_dispatch:
 
 permissions:
