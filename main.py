@@ -2,7 +2,12 @@ import os
 import yaml
 import requests
 import feedparser
+import json
+from datetime import datetime, UTC
 from dotenv import load_dotenv
+
+#重複防止用の記録ファイル
+SEEN_FILE = "seen.json"
 
 # 初期化
 load_dotenv()
@@ -89,13 +94,45 @@ def post_to_discord(paper):
 
     requests.post(webhook_url, json=data)
 
+
+def load_seen():
+    try:
+        with open(SEEN_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data.get("seen_ids", {})
+    except FileNotFoundError:
+        return {}
+
+
+def save_seen(seen_dict):
+    with open(SEEN_FILE, "w", encoding="utf-8") as f:
+        json.dump(
+            {"seen_ids": seen_dict},
+            f,
+            ensure_ascii=False,
+            indent=2
+        )
+
 # メイン処理
 def main():
     papers = fetch_arxiv()
+    seen = load_seen()
 
-    selected = papers[:config["post"]["max_per_run"]]
+    posted_count = 0
+    max_post = config["post"]["max_per_run"]
 
-    for paper in selected:
+    for paper in papers:
+
+        if posted_count >= max_post:
+            print("reached max post limit for this run:", max_post)
+            break
+
+        pid = paper["link"].split("/")[-1]
+
+        if pid in seen:
+            print("skipping already posted paper:", paper["title"])
+            continue
+
         # 要約
         paper["summary"] = summarize(paper["summary"])
 
@@ -107,6 +144,15 @@ def main():
         post_to_discord(paper)
 
         print("Posted:", paper["title"])
+
+        seen[pid] = {
+            "title": paper["title"],
+            "posted_at": datetime.now(UTC).isoformat()
+        }
+        
+        posted_count += 1
+
+    save_seen(seen)
 
 # 実行
 if __name__ == "__main__":
