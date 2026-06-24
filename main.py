@@ -27,18 +27,14 @@ def fetch_arxiv():
 
     return papers
 
-# =========================
-# 要約
-# =========================
+# 要約(文字数制限)
 def summarize(text):
     if not config["summary"]["enabled"]:
         return text
 
     return text[:config["summary"]["max_length"]] + "..."
 
-# =========================
-# 翻訳（DeepL）
-# =========================
+# 翻訳(DeepL API)
 def translate(text):
     if not config["translation"]["enabled"]:
         return text
@@ -48,7 +44,7 @@ def translate(text):
         print("Error: DeepL APIKEY unset")
         return text
 
-    url = "https://api-free.deepl.com/v2/translate"
+    url = "https://api-free.deepl.com/v2/translate" #有料版はエンドポイントが違うので注意
 
     headers = {
         "Authorization": f"DeepL-Auth-Key {api_key}"
@@ -67,9 +63,7 @@ def translate(text):
 
     return response.json()["translations"][0]["text"]
 
-# =========================
 # Discord投稿
-# =========================
 def post_to_discord(paper):
     webhook_url = os.getenv("DISCORD_WEBHOOK_URL")
 
@@ -91,20 +85,17 @@ def post_to_discord(paper):
 
     requests.post(webhook_url, json=data)
 
-# =========================
 # メイン処理
-# =========================
 def main():
     papers = fetch_arxiv()
 
-    # 🔥 先に絞る（重要）
     selected = papers[:config["post"]["max_per_run"]]
 
     for paper in selected:
         # 要約
         paper["summary"] = summarize(paper["summary"])
 
-        # 翻訳（必要分だけ）
+        # 翻訳
         paper["title"] = translate(paper["title"])
         paper["summary"] = translate(paper["summary"])
 
@@ -113,8 +104,6 @@ def main():
 
         print("Posted:", paper["title"])
 
-# =========================
 # 実行
-# =========================
 if __name__ == "__main__":
     main()
